@@ -1,0 +1,9 @@
+{
+	"id": "custom-block-plugin",
+	"name": "Custom Block Plugin",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "This plugin adds a custom markdown block.",
+	"author": "Your Name",
+	"isDesktopOnly": false
+}

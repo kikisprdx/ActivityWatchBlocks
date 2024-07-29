@@ -1,0 +1,40 @@
+{
+	"compilerOptions": {
+	  "baseUrl": ".",
+	  "paths": {
+		"components": ["components/*"]
+	  },
+	  "inlineSourceMap": true,
+	  "inlineSources": true,
+	  "module": "ESNext",
+	  "target": "ES6",
+	  "allowJs": true,
+	  "noImplicitAny": true,
+	  "moduleResolution": "node",
+	  "importHelpers": true,
+	  "isolatedModules": true,
+	  "strictNullChecks": true,
+	  "lib": [
+		"DOM",
+		"ES5",
+		"ES6",
+		"ES7",
+		"DOM.Iterable",
+		"ScriptHost",
+		"ES2016.Array.Include"
+	  ],
+	  "jsx": "react-jsx",
+	  "allowSyntheticDefaultImports": true,
+	  "esModuleInterop": true,
+	  "strict": true,
+	  "forceConsistentCasingInFileNames": true,
+	  "declaration": true,
+	  "outDir": "./dist"
+	},
+	"include": [
+	  "**/*.ts",
+	  "**/*.tsx",
+	  "components/**/*.ts"
+	],
+	"exclude": ["node_modules", "**/*.spec.ts"]
+  }

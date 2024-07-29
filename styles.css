@@ -1,0 +1,128 @@
+.custom-block {
+	background-color: #f0f0f0;
+	border: 1px solid #ccc;
+	padding: 10px;
+	margin: 10px 0;
+	border-radius: 5px;
+}
+
+.custom-block h2 {
+	margin-top: 0;
+	color: #333;
+}
+.custom-block table {
+	border-collapse: collapse;
+	width: 100%;
+	margin-top: 10px;
+}
+
+.custom-block th,
+.custom-block td {
+	border: 1px solid #ddd;
+	padding: 8px;
+	text-align: left;
+}
+
+.custom-block th {
+	background-color: #f2f2f2;
+}
+
+/* ActivityWatchBarChart.css */
+
+.card {
+	background-color: #1e1e1e;
+	border-radius: 8px;
+	overflow: hidden;
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+	padding: 16px 20px;
+	border-bottom: 1px solid #333;
+}
+
+.card-title {
+	font-size: 18px;
+	font-weight: 600;
+	color: #ffffff;
+	margin: 0;
+}
+
+.card-description {
+	font-size: 14px;
+	color: #a0a0a0;
+	margin: 4px 0 0 0;
+}
+
+.card-content {
+	padding: 20px;
+}
+
+.card-footer {
+	padding: 16px 20px;
+	border-top: 1px solid #333;
+	font-size: 14px;
+}
+
+.flex {
+	display: flex;
+	align-items: center;
+}
+
+.gap-2 {
+	gap: 8px;
+}
+
+.font-medium {
+	font-weight: 500;
+}
+
+.leading-none {
+	line-height: 1;
+}
+
+.text-muted-foreground {
+	color: #a0a0a0;
+}
+
+/* Chart specific styles */
+:root {
+	--chart-1: 142, 76%, 36%; /* Green color for current period */
+	--chart-2: 207, 90%, 54%; /* Blue color for previous period */
+}
+
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+	stroke: #333;
+}
+
+.recharts-xAxis .recharts-cartesian-axis-tick-value {
+	fill: #a0a0a0;
+}
+
+.recharts-yAxis .recharts-cartesian-axis-tick-value {
+	fill: #a0a0a0;
+}
+
+/* Tooltip styles */
+.recharts-tooltip-wrapper {
+	background-color: #2a2a2a;
+	border: 1px solid #444;
+	border-radius: 4px;
+	padding: 8px;
+}
+
+.recharts-tooltip-label {
+	color: #ffffff;
+	font-weight: 600;
+}
+
+.recharts-tooltip-item {
+	color: #a0a0a0;
+}
+
+/* Responsive container */
+.recharts-responsive-container {
+	width: 100% !important;
+	height: 300px !important;
+}
