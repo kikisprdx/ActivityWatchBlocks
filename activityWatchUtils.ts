@@ -1,41 +1,61 @@
 export interface CategoryData {
-    categories: {
-        name: string;
-        duration: number;
-        percentage: number;
-    }[];
-    total_duration: number;
+	categories: {
+		name: string;
+		duration: number;
+		percentage: number;
+	}[];
+	total_duration: number;
 }
 
-export async function fetchCategoryData(bucket: string, hours: number): Promise<CategoryData> {
-    const url = `http://localhost:5000/category_data/${bucket}/${hours}`;
-    console.log(`Fetching data from: ${url}`);
+const AW_SERVER_URL = "http://localhost:5000";
 
-    try {
-        const response = await fetch(url, {
-            method: "GET",
-            mode: "cors",
-            headers: {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-            },
-        });
+export async function fetchCategoryData(
+	bucket: string,
+	hours: number,
+): Promise<CategoryData> {
+	const startTime = new Date(
+		Date.now() - hours * 60 * 60 * 1000,
+	).toISOString();
+	const endTime = new Date().toISOString();
+	const url = `${AW_SERVER_URL}/category_data/${bucket}/${hours}`;
 
-        if (!response.ok) {
-            console.error(`HTTP error! status: ${response.status}`);
-            console.error(`Response text: ${await response.text()}`);
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+	console.log(`Fetching data from: ${url}`);
 
-        const data = await response.json();
-        console.log("Received data from API:", JSON.stringify(data, null, 2));
+	try {
+		const response = await fetch(url);
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		}
+		const data = await response.json();
+		return data as CategoryData;
+	} catch (error) {
+		console.error("Error fetching category data:", error);
+		throw error;
+	}
+}
 
-        return data as CategoryData;
-    } catch (error) {
-        console.error("Error fetching category data:", error);
-        if (error instanceof TypeError && error.message === "Failed to fetch") {
-            console.error("This error often occurs due to CORS issues or if the server is not running.");
-        }
-        throw error;
-    }
+export async function fetchBuckets(): Promise<string[]> {
+	const url = `${AW_SERVER_URL}/analyzer_buckets`;
+	console.log(`Fetching buckets from: ${url}`);
+
+	try {
+		const response = await fetch(url);
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		}
+		const data = await response.json();
+		return data;
+	} catch (error) {
+		console.error("Error fetching buckets:", error);
+		throw error;
+	}
+}
+
+function getStartTime(hours: number): string {
+	const start = new Date(Date.now() - hours * 60 * 60 * 1000);
+	return start.toISOString();
+}
+
+function getEndTime(): string {
+	return new Date().toISOString();
 }
