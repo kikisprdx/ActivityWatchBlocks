@@ -41,11 +41,11 @@ export class ActivityWatchBarChartBlock extends MarkdownRenderChild {
         console.log(`Rendering chart for ${hours} hours`);
         try {
             const data = await this.fetchCategoryData(
-                "aw-watcher-window",
+                "aw-watcher-window_Kikis",
                 hours,
             );
             const prev_data = await this.fetchCategoryData(
-                "aw-watcher-window",
+                "aw-watcher-window_Kikis",
                 prev_hours,
             );
 

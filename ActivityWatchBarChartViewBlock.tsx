@@ -1,7 +1,7 @@
 import { MarkdownRenderChild } from "obsidian";
 import { createRoot, Root } from "react-dom/client";
 import React from "react";
-import { ActivityWatchStackedLineChart } from "./ActivityWatchStackedLineChart";
+import { ActivityWatchBarChart } from "./ActivityWatchBarChart";
 import { ActivityWatchPluginSettings } from "./ActivityWatchPluginSettings";
 
 interface CategoryData {
@@ -13,7 +13,7 @@ interface CategoryData {
     total_duration: number;
 }
 
-export class ActivityWatchStackedLineChartViewBlock extends MarkdownRenderChild {
+export class ActivityWatchBarChartViewBlock extends MarkdownRenderChild {
     private root: Root | null = null;
     private settings: ActivityWatchPluginSettings;
 
@@ -27,7 +27,7 @@ export class ActivityWatchStackedLineChartViewBlock extends MarkdownRenderChild 
     }
 
     async onload() {
-        console.log("Loading ActivityWatchStackedLineChartViewBlock");
+        console.log("Loading ActivityWatchBarChartViewBlock");
         try {
             const data = await this.fetchCategoryData("aw-watcher-window_Kikis", 24);
             const prev_data = await this.fetchCategoryData("aw-watcher-window_Kikis", 48);
@@ -36,7 +36,7 @@ export class ActivityWatchStackedLineChartViewBlock extends MarkdownRenderChild 
                 React.createElement(
                     React.StrictMode,
                     null,
-                    React.createElement(ActivityWatchStackedLineChart, { 
+                    React.createElement(ActivityWatchBarChart, { 
                         data: data, 
                         prev_data: prev_data,
                         onTimeframeChange: this.handleTimeframeChange.bind(this),
@@ -55,7 +55,7 @@ export class ActivityWatchStackedLineChartViewBlock extends MarkdownRenderChild 
     }
 
     async onunload() {
-        console.log("Unloading ActivityWatchStackedLineChartViewBlock");
+        console.log("Unloading ActivityWatchBarChartViewBlock");
         if (this.root) {
             this.root.unmount();
         }

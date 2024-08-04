@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Obsidian Sample Plugin
 
 This is a sample plugin for Obsidian (https://obsidian.md).
@@ -95,6 +94,3 @@ If you have multiple URLs, you can also do:
 ## API Documentation
 
 See https://github.com/obsidianmd/obsidian-api
-=======
-# ActivityWatchBlocks
->>>>>>> 5e77388e2dfc3e8f8ee556c36efed78baa3b169f
