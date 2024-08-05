@@ -1,7 +1,7 @@
 import { Plugin, WorkspaceLeaf } from "obsidian";
-import { ActivityWatchBarChartView, VIEW_TYPE_BARCHART } from "./ActivityWatchBarChartView";
-import { ActivityWatchBarChartViewBlock } from "./ActivityWatchBarChartViewBlock";
-import { ActivityWatchStackedLineChartViewBlock } from "./ActivityWatchStackedLineChartViewBlock";
+import { ActivityWatchBarChartView, VIEW_TYPE_BARCHART } from "./charts/BarChartView";
+import { ActivityWatchBarChartViewBlock } from "./charts/BarChartMarkdownBlock";
+import { ActivityWatchStackedLineChartViewBlock } from "./charts/StackedLineChartMarkdownBlock";
 import { ActivityWatchSettingTab, ActivityWatchPluginSettings, DEFAULT_SETTINGS } from "./ActivityWatchPluginSettings";
 
 export default class ActivityWatchPlugin extends Plugin {

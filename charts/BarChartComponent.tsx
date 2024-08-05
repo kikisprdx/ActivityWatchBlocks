@@ -12,7 +12,7 @@ import {
     TooltipProps
 } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ActivityWatchPluginSettings } from "./ActivityWatchPluginSettings";
+import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
 
 // Define the structure of category data
 interface CategoryData {

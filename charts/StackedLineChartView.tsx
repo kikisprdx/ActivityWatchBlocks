@@ -12,7 +12,7 @@ import {
     TooltipProps
 } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ActivityWatchPluginSettings } from "./ActivityWatchPluginSettings";
+import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
 
 interface CategoryData {
     categories: {
@@ -136,7 +136,7 @@ export const ActivityWatchStackedLineChart: React.FC<ActivityWatchStackedLineCha
                     <p style={{ margin: '0 0 5px', fontWeight: 'bold' }}>{`Date: ${new Date(label).toLocaleString()}`}</p>
                     {payload.map((entry, index) => (
                         <p key={`item-${index}`} style={{ margin: '0', color: entry.color }}>
-                            {`${entry.name}: ${entry.value.toFixed(2)} hours`}
+                            {`${entry.name}: ${entry.value?.toFixed(2) ?? 'N/A'} hours`}
                         </p>
                     ))}
                 </div>
