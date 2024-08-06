@@ -1,17 +1,9 @@
 import { MarkdownRenderChild } from "obsidian";
 import { createRoot, Root } from "react-dom/client";
 import React from "react";
-import { ActivityWatchBarChart } from "./BarChartComponent";
+import { BarChartComponent } from "./BarChartComponent";
 import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
-
-interface CategoryData {
-    categories: {
-        name: string;
-        duration: number;
-        percentage: number;
-    }[];
-    total_duration: number;
-}
+import { fetchCategoryData, fetchTimeframeData} from "../ActivityWatchUtils";
 
 export class ActivityWatchBarChartViewBlock extends MarkdownRenderChild {
     private root: Root | null = null;
@@ -29,17 +21,17 @@ export class ActivityWatchBarChartViewBlock extends MarkdownRenderChild {
     async onload() {
         console.log("Loading ActivityWatchBarChartViewBlock");
         try {
-            const data = await this.fetchCategoryData("aw-watcher-window_Kikis", 24);
-            const prev_data = await this.fetchCategoryData("aw-watcher-window_Kikis", 48);
+            const data = await fetchCategoryData("aw-watcher-window_Kikis", 24);
+            const prev_data = await fetchCategoryData("aw-watcher-window_Kikis", 48);
             this.root = createRoot(this.containerEl);
             this.root.render(
                 React.createElement(
                     React.StrictMode,
                     null,
-                    React.createElement(ActivityWatchBarChart, { 
+                    React.createElement(BarChartComponent, { 
                         data: data, 
                         prev_data: prev_data,
-                        onTimeframeChange: this.handleTimeframeChange.bind(this),
+                        onTimeframeChange: fetchTimeframeData.bind(this),
                         settings: this.settings
                     }),
                 ),
@@ -58,41 +50,6 @@ export class ActivityWatchBarChartViewBlock extends MarkdownRenderChild {
         console.log("Unloading ActivityWatchBarChartViewBlock");
         if (this.root) {
             this.root.unmount();
-        }
-    }
-
-    async handleTimeframeChange(hours: number, bucket: string) {
-        console.log(`Handling timeframe change: ${hours} hours, bucket: ${bucket}`);
-        const data = await this.fetchCategoryData(bucket, hours);
-        const prev_data = await this.fetchCategoryData(bucket, hours * 2);
-        return { data, prev_data };
-    }
-
-    async fetchCategoryData(bucket: string, hours: number): Promise<CategoryData> {
-        const url = `http://localhost:5000/category_data/${bucket}/${hours}`;
-        console.log(`Fetching data from: ${url}`);
-
-        try {
-            const response = await fetch(url, {
-                method: "GET",
-                mode: "cors",
-                headers: {
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log("Received data from API:", JSON.stringify(data, null, 2));
-
-            return data as CategoryData;
-        } catch (error) {
-            console.error("Error fetching category data:", error);
-            throw error;
         }
     }
 }

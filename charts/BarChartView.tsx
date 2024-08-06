@@ -1,19 +1,11 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
 import { createRoot, Root } from "react-dom/client";
 import React from "react";
-import { ActivityWatchBarChart } from "./BarChartComponent";
+import { BarChartComponent } from "./BarChartComponent";
 import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
+import { fetchCategoryData, fetchTimeframeData} from "ActivityWatchUtils";
 
 export const VIEW_TYPE_BARCHART = "activitywatch-barchart-view";
-
-interface CategoryData {
-    categories: {
-        name: string;
-        duration: number;
-        percentage: number;
-    }[];
-    total_duration: number;
-}
 
 export class ActivityWatchBarChartView extends ItemView {
     private root: Root | null = null;
@@ -44,18 +36,18 @@ export class ActivityWatchBarChartView extends ItemView {
         console.log("Starting renderChart method");
         try {
             console.log("Fetching initial data...");
-            const currentData = await this.fetchCategoryData("aw-watcher-window_Kikis", 24);
-            const previousData = await this.fetchCategoryData("aw-watcher-window_Kikis", 48);
+            const currentData = await fetchCategoryData("aw-watcher-window_Kikis", 24);
+            const previousData = await fetchCategoryData("aw-watcher-window_Kikis", 48);
             console.log("Fetched initial data:", currentData, previousData);
             
             this.root?.render(
                 React.createElement(
                     React.StrictMode,
                     null,
-                    React.createElement(ActivityWatchBarChart, {
+                    React.createElement(BarChartComponent, {
                         data: currentData,
                         prev_data: previousData,
-                        onTimeframeChange: this.handleTimeframeChange.bind(this),
+                        onTimeframeChange: fetchTimeframeData.bind(this),
                         settings: this.settings
                     }),
                 ),
@@ -71,37 +63,7 @@ export class ActivityWatchBarChartView extends ItemView {
         }
     }
 
-    async handleTimeframeChange(hours: number, bucket: string) {
-        console.log(`Handling timeframe change: ${hours} hours, bucket: ${bucket}`);
-        const data = await this.fetchCategoryData(bucket, hours);
-        const prev_data = await this.fetchCategoryData(bucket, hours * 2);
-        return { data, prev_data };
-    }
 
-    async fetchCategoryData(bucket: string, hours: number): Promise<CategoryData> {
-        const url = `http://localhost:5000/category_data/${bucket}/${hours}`;
-        console.log(`Fetching data from: ${url}`);
-        
-        try {
-            const response = await fetch(url, {
-                method: "GET",
-                mode: "cors",
-                headers: {
-                    Accept: "application/json",
-                },
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log("Received data from API:", JSON.stringify(data, null, 2));
-            
-            return data as CategoryData;
-        } catch (error) {
-            console.error("Error fetching category data:", error);
-            throw error;
-        }
-    }
+
+   
 }
