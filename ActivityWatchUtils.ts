@@ -14,6 +14,9 @@ export interface ChartState {
     selectedTimeframe: string;
     selectedBucket: string;
     error: string | null;
+    categoryCount: number;
+    binSize: string;
+    timeframe: string;
 }
 
 
@@ -67,10 +70,34 @@ export async function fetchCategoryData(bucket: string, hours: number): Promise<
     }
 }
 
-export async function fetchTimeframeData(hours: number, bucket: string): Promise<{ data: CategoryData, prev_data: CategoryData }> {
-    console.log(`Handling timeframe change: ${hours} hours, bucket: ${bucket}`);
-    const data = await fetchCategoryData(bucket, hours);
-    const prev_data = await fetchCategoryData(bucket, hours * 2);
-    return { data, prev_data };
+export function calculatePreviousPeriodData(combinedData: CategoryData, currentData: CategoryData): CategoryData {
+    const prevData: CategoryData = {
+        categories: combinedData.categories.map(combinedCategory => {
+            const currentCategory = currentData.categories.find(c => c.name === combinedCategory.name);
+            return {
+                name: combinedCategory.name,
+                duration: currentCategory ? combinedCategory.duration - currentCategory.duration : combinedCategory.duration,
+                percentage: 0 // We'll calculate this after
+            };
+        }).filter(category => category.duration > 0), // Remove categories with zero or negative duration
+        total_duration: combinedData.total_duration - currentData.total_duration
+    };
+
+    // Recalculate percentages for the previous period
+    prevData.categories.forEach(category => {
+        category.percentage = (category.duration / prevData.total_duration) * 100;
+    });
+
+    return prevData;
 }
 
+// Example usage in fetchTimeframeData
+export async function fetchTimeframeData(hours: number, bucket: string): Promise<{ data: CategoryData, prev_data: CategoryData }> {
+    console.log(`Handling timeframe change: ${hours} hours, bucket: ${bucket}`);
+
+    const currentData = await fetchCategoryData(bucket, hours);
+    const combinedData = await fetchCategoryData(bucket, hours * 2);
+    const prevData = calculatePreviousPeriodData(combinedData, currentData);
+
+    return { data: currentData, prev_data: prevData };
+}

@@ -14,7 +14,7 @@ export default class ActivityWatchPlugin extends Plugin {
 
         this.registerView(
             VIEW_TYPE_BARCHART,
-            (leaf: WorkspaceLeaf) => new ActivityWatchBarChartView(leaf, this.settings)
+            (leaf: WorkspaceLeaf) => new ActivityWatchBarChartView(leaf, this.settings, this)
         );
 
         this.addRibbonIcon(
@@ -30,7 +30,7 @@ export default class ActivityWatchPlugin extends Plugin {
             (source, el, ctx) => {
                 const rootEl = el.createDiv();
                 ctx.addChild(
-                    new ActivityWatchBarChartViewBlock(rootEl, source, this.settings)
+                    new ActivityWatchBarChartViewBlock(rootEl, source, this.settings, ctx, this)
                 );
             }
         );

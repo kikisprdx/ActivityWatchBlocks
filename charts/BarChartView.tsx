@@ -3,17 +3,20 @@ import { createRoot, Root } from "react-dom/client";
 import React from "react";
 import { BarChartComponent } from "./BarChartComponent";
 import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
-import { fetchCategoryData, fetchTimeframeData} from "ActivityWatchUtils";
+import { fetchCategoryData, fetchTimeframeData, ChartState } from "../ActivityWatchUtils";
 
 export const VIEW_TYPE_BARCHART = "activitywatch-barchart-view";
 
 export class ActivityWatchBarChartView extends ItemView {
     private root: Root | null = null;
     private settings: ActivityWatchPluginSettings;
+    private chartState: Partial<ChartState> = {};
+    private plugin: any; // Replace 'any' with your actual plugin type
 
-    constructor(leaf: WorkspaceLeaf, settings: ActivityWatchPluginSettings) {
+    constructor(leaf: WorkspaceLeaf, settings: ActivityWatchPluginSettings, plugin: any) {
         super(leaf);
         this.settings = settings;
+        this.plugin = plugin;
     }
 
     getViewType(): string {
@@ -29,7 +32,21 @@ export class ActivityWatchBarChartView extends ItemView {
         const container = this.containerEl.children[1];
         container.empty();
         this.root = createRoot(container as HTMLElement);
+        await this.loadChartState();
         await this.renderChart();
+    }
+
+    async loadChartState() {
+        const savedState = await this.plugin.loadData("barchart-view-state");
+        if (savedState) {
+            this.chartState = savedState;
+            console.log("Loaded chart state:", this.chartState);
+        }
+    }
+
+    async saveChartState() {
+        await this.plugin.saveData("barchart-view-state", this.chartState);
+        console.log("Saved chart state:", this.chartState);
     }
 
     async renderChart() {
@@ -48,7 +65,9 @@ export class ActivityWatchBarChartView extends ItemView {
                         data: currentData,
                         prev_data: previousData,
                         onTimeframeChange: fetchTimeframeData.bind(this),
-                        settings: this.settings
+                        settings: this.settings,
+                        initialState: this.chartState,
+                        onStateChange: this.handleStateChange.bind(this)
                     }),
                 ),
             );
@@ -63,7 +82,14 @@ export class ActivityWatchBarChartView extends ItemView {
         }
     }
 
+    private async handleStateChange(newState: Partial<ChartState>) {
+        this.chartState = { ...this.chartState, ...newState };
+        await this.saveChartState();
+        console.log("Chart state updated and saved:", this.chartState);
+    }
 
-
-   
+    async onClose() {
+        // Ensure the latest state is saved when the view is closed
+        await this.saveChartState();
+    }
 }

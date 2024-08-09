@@ -2,16 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, ChevronUp, ChevronDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
-import { fetchBuckets } from 'ActivityWatchUtils';
-
-export interface CategoryData {
-    categories: {
-        name: string;
-        duration: number;
-        percentage: number;
-    }[];
-    total_duration: number;
-}
+import { fetchBuckets, calculatePreviousPeriodData,  CategoryData, ChartState} from 'ActivityWatchUtils';
 
 export interface ChartDataItem {
     name: string;
@@ -27,6 +18,8 @@ export interface ChartComponentProps {
     onTimeframeChange: (hours: number, bucket: string) => Promise<{ data: CategoryData; prev_data: CategoryData }>;
     settings: ActivityWatchPluginSettings;
     renderChart: (chartData: ChartDataItem[], settings: ActivityWatchPluginSettings) => React.ReactNode;
+    initialState?: Partial<ChartState>;
+    onStateChange: (newState: Partial<ChartState>) => void;
 }
 
 export const ChartComponent: React.FC<ChartComponentProps> = ({
@@ -34,14 +27,16 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     prev_data: initialPrevData,
     onTimeframeChange,
     settings,
-    renderChart
+    renderChart,
+    initialState
 }) => {
     const [data, setData] = useState<CategoryData>(initialData);
     const [prevData, setPrevData] = useState<CategoryData>(initialPrevData);
-    const [selectedTimeframe, setSelectedTimeframe] = useState<string>("24");
-    const [categoryCount, setCategoryCount] = useState<number>(settings.categoryCount);
+    const [selectedTimeframe, setSelectedTimeframe] = useState<string>(initialState?.selectedTimeframe || "24");
+    const [categoryCount, setCategoryCount] = useState<number>(initialState?.categoryCount || settings.categoryCount);
     const [buckets, setBuckets] = useState<string[]>([]);
-    const [selectedBucket, setSelectedBucket] = useState<string>("");
+    const [selectedBucket, setSelectedBucket] = useState<string>(initialState?.selectedBucket || "");
+
 
     useEffect(() => {
         const loadBuckets = async () => {
@@ -62,17 +57,19 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     const handleTimeframeChange = async (value: string) => {
         setSelectedTimeframe(value);
         const hours = parseInt(value);
-        const { data: newData, prev_data: newPrevData } = await onTimeframeChange(hours, selectedBucket);
+        const { data: newData, prev_data: combinedData } = await onTimeframeChange(hours, selectedBucket);
+        const prevData = calculatePreviousPeriodData(data, combinedData);
         setData(newData);
-        setPrevData(newPrevData);
+        setPrevData(prevData);
     };
 
     const handleBucketChange = async (value: string) => {
         setSelectedBucket(value);
         const hours = parseInt(selectedTimeframe);
-        const { data: newData, prev_data: newPrevData } = await onTimeframeChange(hours, value);
+        const { data: newData, prev_data: combinedData } = await onTimeframeChange(hours, value);
+        const prevData = calculatePreviousPeriodData(data, combinedData);
         setData(newData);
-        setPrevData(newPrevData);
+        setPrevData(prevData);
     };
 
     const handleCategoryCountChange = (increment: number) => {
