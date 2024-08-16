@@ -1,33 +1,34 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
 import { createRoot, Root } from "react-dom/client";
 import React from "react";
-import { StackedLineChartComponent } from "./StackedLineChartComponent";
+import { BarChartComponent } from "./BarChartComponent";
 import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
-import { ChartState, fetchStocahsticTimeframeData, StochasticData } from "../ActivityWatchUtils";
+import { fetchCategoryData, fetchTimeframeData, ChartState } from "../ActivityWatchUtils";
 
-export const VIEW_TYPE_STACKEDLINECHART = "activitywatch-stackedlinechart-view";
+export const VIEW_TYPE_BARCHART = "activitywatch-barchart-view";
 
-export class ActivityWatchStackedLineChartView extends ItemView {
+export class ActivityWatchBarChartView extends ItemView {
     private root: Root | null = null;
     private settings: ActivityWatchPluginSettings;
     private chartState: Partial<ChartState> = {};
-    private plugin: any;
+    private plugin: any; // Replace 'any' with your actual plugin type
 
     constructor(leaf: WorkspaceLeaf, settings: ActivityWatchPluginSettings, plugin: any) {
         super(leaf);
         this.settings = settings;
         this.plugin = plugin;
     }
+
     getViewType(): string {
-        return VIEW_TYPE_STACKEDLINECHART;
+        return VIEW_TYPE_BARCHART;
     }
 
     getDisplayText(): string {
-        return "ActivityWatch Stacked Line Chart";
+        return "ActivityWatch Bar Chart";
     }
 
     async onOpen() {
-        console.log("Opening ActivityWatch Stacked Line Chart View");
+        console.log("Opening ActivityWatch Bar Chart View");
         const container = this.containerEl.children[1];
         container.empty();
         this.root = createRoot(container as HTMLElement);
@@ -36,7 +37,7 @@ export class ActivityWatchStackedLineChartView extends ItemView {
     }
 
     async loadChartState() {
-        const savedState = await this.plugin.loadData("stackedlinechart-view-state");
+        const savedState = await this.plugin.loadData("barchart-view-state");
         if (savedState) {
             this.chartState = savedState;
             console.log("Loaded chart state:", this.chartState);
@@ -44,35 +45,29 @@ export class ActivityWatchStackedLineChartView extends ItemView {
     }
 
     async saveChartState() {
-        await this.plugin.saveData("stackedlinechart-view-state", this.chartState);
+        await this.plugin.saveData("barchart-view-state", this.chartState);
         console.log("Saved chart state:", this.chartState);
-    }
-
-    private handleTimeframeChange = async (hours: number, bucket: string, from?: Date, to?: Date): Promise<{ data: StochasticData; prev_data: StochasticData }> => {
-        // We're using a fixed timeframeDays value here. You might want to make this configurable.
-        return fetchStocahsticTimeframeData(bucket, hours, 14, from, to);
     }
 
     async renderChart() {
         console.log("Starting renderChart method");
         try {
             console.log("Fetching initial data...");
-            const { from, to } = this.chartState.dateRange || {};
-            const data = await fetchStocahsticTimeframeData("aw-watcher-window_Kikis", 24, 14, from, to);
-            console.log("Fetched initial data:", data);
+            const currentData = await fetchCategoryData("aw-watcher-window_Kikis", 24);
+            const previousData = await fetchCategoryData("aw-watcher-window_Kikis", 48);
+            console.log("Fetched initial data:", currentData, previousData);
             
             this.root?.render(
                 React.createElement(
                     React.StrictMode,
                     null,
-                    React.createElement(StackedLineChartComponent, {
-                        data: data.data,
-                        prev_data: data.prev_data,
-                        onTimeframeChange: this.handleTimeframeChange.bind(this),
+                    React.createElement(BarChartComponent, {
+                        data: currentData,
+                        prev_data: previousData,
+                        onTimeframeChange: fetchTimeframeData.bind(this),
                         settings: this.settings,
                         initialState: this.chartState,
-                        onStateChange: this.handleStateChange.bind(this),
-                        useDateRange: true
+                        onStateChange: this.handleStateChange.bind(this)
                     }),
                 ),
             );

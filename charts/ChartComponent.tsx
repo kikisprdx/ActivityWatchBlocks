@@ -2,7 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, ChevronUp, ChevronDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
-import { fetchBuckets, calculatePreviousPeriodData,  CategoryData, ChartState} from 'ActivityWatchUtils';
+import { fetchBuckets, ChartState, StochasticData, CategoryData } from '../ActivityWatchUtils';
+import { DatePickerWithRange } from "../components/ui/date-range-picker"
+import { DateRange } from "react-day-picker"
+
+export interface ChartComponentProps<T> {
+    data: T;
+    prev_data: T;
+    onTimeframeChange: (hours: number, bucket: string, from: Date, to: Date) => Promise<{ data: T; prev_data: T }>;
+    settings: ActivityWatchPluginSettings;
+    renderChart: (chartData: T, prevChartData: T, settings: ActivityWatchPluginSettings, categoryCount: number) => React.ReactNode;
+    initialState?: Partial<ChartState>;
+    onStateChange: (newState: Partial<ChartState>) => void;
+    useDateRange?: boolean;
+}
 
 export interface ChartDataItem {
     name: string;
@@ -12,31 +25,26 @@ export interface ChartDataItem {
     previousPercentage: number;
 }
 
-export interface ChartComponentProps {
-    data: CategoryData;
-    prev_data: CategoryData;
-    onTimeframeChange: (hours: number, bucket: string) => Promise<{ data: CategoryData; prev_data: CategoryData }>;
-    settings: ActivityWatchPluginSettings;
-    renderChart: (chartData: ChartDataItem[], settings: ActivityWatchPluginSettings) => React.ReactNode;
-    initialState?: Partial<ChartState>;
-    onStateChange: (newState: Partial<ChartState>) => void;
-}
-
-export const ChartComponent: React.FC<ChartComponentProps> = ({
+export function ChartComponent<T extends StochasticData | CategoryData>({
     data: initialData,
     prev_data: initialPrevData,
     onTimeframeChange,
     settings,
     renderChart,
-    initialState
-}) => {
-    const [data, setData] = useState<CategoryData>(initialData);
-    const [prevData, setPrevData] = useState<CategoryData>(initialPrevData);
+    initialState,
+    onStateChange,
+    useDateRange = false
+}: ChartComponentProps<T>) {
+    const [data, setData] = useState<T>(initialData);
+    const [prevData, setPrevData] = useState<T>(initialPrevData);
     const [selectedTimeframe, setSelectedTimeframe] = useState<string>(initialState?.selectedTimeframe || "24");
-    const [categoryCount, setCategoryCount] = useState<number>(initialState?.categoryCount || settings.categoryCount);
     const [buckets, setBuckets] = useState<string[]>([]);
     const [selectedBucket, setSelectedBucket] = useState<string>(initialState?.selectedBucket || "");
-
+    const [categoryCount, setCategoryCount] = useState<number>(initialState?.categoryCount || 10);
+    const [dateRange, setDateRange] = useState<DateRange | undefined>({
+        from: initialState?.dateRange?.from || new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+        to: initialState?.dateRange?.to || new Date()
+    });
 
     useEffect(() => {
         const loadBuckets = async () => {
@@ -54,49 +62,88 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
         loadBuckets();
     }, []);
 
+    useEffect(() => {
+        if (initialState?.dateRange) {
+            setDateRange(initialState.dateRange);
+        }
+    }, [initialState?.dateRange]);
+
     const handleTimeframeChange = async (value: string) => {
         setSelectedTimeframe(value);
         const hours = parseInt(value);
-        const { data: newData, prev_data: combinedData } = await onTimeframeChange(hours, selectedBucket);
-        const prevData = calculatePreviousPeriodData(data, combinedData);
-        setData(newData);
-        setPrevData(prevData);
+        if (dateRange?.from && dateRange?.to) {
+            const { data: newData, prev_data: newPrevData } = await onTimeframeChange(hours, selectedBucket, dateRange.from, dateRange.to);
+            setData(newData);
+            setPrevData(newPrevData);
+        }
     };
 
     const handleBucketChange = async (value: string) => {
         setSelectedBucket(value);
         const hours = parseInt(selectedTimeframe);
-        const { data: newData, prev_data: combinedData } = await onTimeframeChange(hours, value);
-        const prevData = calculatePreviousPeriodData(data, combinedData);
-        setData(newData);
-        setPrevData(prevData);
+        if (dateRange?.from && dateRange?.to) {
+            const { data: newData, prev_data: newPrevData } = await onTimeframeChange(hours, value, dateRange.from, dateRange.to);
+            setData(newData);
+            setPrevData(newPrevData);
+        }
     };
 
     const handleCategoryCountChange = (increment: number) => {
-        setCategoryCount(prevCount => Math.max(1, prevCount + increment));
+        setCategoryCount(prevCount => {
+            const newCount = Math.max(1, prevCount + increment);
+            onStateChange({ categoryCount: newCount });
+            return newCount;
+        });
     };
 
-    const chartData: ChartDataItem[] = data.categories
-        .sort((a, b) => b.duration - a.duration)
-        .slice(0, Math.min(categoryCount, data.categories.length))
-        .map((category) => {
-            const prevCategory = prevData.categories.find(c => c.name === category.name);
-            return {
-                name: category.name,
-                current: Number((category.duration / 3600).toFixed(2)),
-                currentPercentage: category.percentage,
-                previous: prevCategory ? Number((prevCategory.duration / 3600).toFixed(2)) : 0,
-                previousPercentage: prevCategory ? prevCategory.percentage : 0
-            };
-        });
+    const handleDateRangeChange = async (newRange: DateRange | undefined) => {
+        console.log('handleDateRangeChange called with:', newRange);
+        setDateRange(newRange);
+        if (newRange?.from && newRange?.to) {
+            const hours = parseInt(selectedTimeframe);
+            try {
+                const { data: newData, prev_data: newPrevData } = await onTimeframeChange(hours, selectedBucket, newRange.from, newRange.to);
+                setData(newData);
+                setPrevData(newPrevData);
+                onStateChange({ 
+                    dateRange: { from: newRange.from, to: newRange.to },
+                    selectedTimeframe,
+                    selectedBucket,
+                    categoryCount
+                });
+            } catch (error) {
+                console.error('Error updating chart with new date range:', error);
+            }
+        }
+    };
 
-    const totalHours = (data.total_duration / 3600).toFixed(2);
-    const previousTotalHours = (prevData.total_duration / 3600).toFixed(2);
-    
+    useEffect(() => {
+        onStateChange({ 
+            selectedTimeframe, 
+            selectedBucket,
+            categoryCount,
+            dateRange: dateRange ? { from: dateRange.from, to: dateRange.to } : undefined
+        });
+    }, [selectedTimeframe, selectedBucket, categoryCount, dateRange]);
+
+    const calculateTotalDuration = (chartData: T): number => {
+        if ('total_duration' in chartData) {
+            return (chartData as CategoryData).total_duration;
+        } else if ('period_data' in chartData) {
+            return (chartData as StochasticData).period_data.reduce((total, dataPoint) => 
+                total + Object.values(dataPoint.categories).reduce((sum, value) => sum + value, 0), 0
+            );
+        }
+        return 0;
+    };
+
+    const currentTotalDuration = calculateTotalDuration(data);
+    const prevTotalDuration = calculateTotalDuration(prevData);
+
     const percentageChange = 
-        prevData.total_duration > 0
-            ? ((data.total_duration - prevData.total_duration) / prevData.total_duration) * 100
-            : (data.total_duration > 0 ? 100 : 0);
+        prevTotalDuration > 0
+            ? ((currentTotalDuration - prevTotalDuration) / prevTotalDuration) * 100
+            : (currentTotalDuration > 0 ? 100 : 0);
 
     return (
         <div className="card" style={{ 
@@ -112,7 +159,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
                     marginBottom: `${settings.titleMarginBottom}px`, 
                     textAlign: 'left' 
                 }}>ActivityWatch Chart</h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <Select onValueChange={handleTimeframeChange} value={selectedTimeframe}>
                         <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Select timeframe" />
@@ -144,9 +191,15 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
                             <ChevronUp color={settings.textColor} size={20} />
                         </button>
                     </div>
+                    {useDateRange && (
+                        <DatePickerWithRange
+                            dateRange={dateRange}
+                            onDateRangeChange={handleDateRangeChange}
+                        />
+                    )}
                 </div>
             </div>
-            {renderChart(chartData, settings)}
+            {renderChart(data, prevData, settings, categoryCount)}
             <div className="card-footer" style={{ marginTop: `${settings.footerMarginTop}px`, fontSize: `${settings.labelFontSize}px` }}>
                 <div className="flex gap-2 font-medium leading-none">
                     {percentageChange !== 0 ? (
@@ -159,9 +212,9 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
                     )}
                 </div>
                 <div className="leading-none text-muted-foreground" style={{ marginTop: '10px' }}>
-                    Current period: {totalHours} hours, Previous period: {previousTotalHours} hours
+                    Current period: {(currentTotalDuration / 3600).toFixed(2)} hours, Previous period: {(prevTotalDuration / 3600).toFixed(2)} hours
                 </div>
             </div>
         </div>
     );
-};
+}

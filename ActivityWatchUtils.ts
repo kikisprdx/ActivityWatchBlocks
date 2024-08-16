@@ -17,10 +17,27 @@ export interface ChartState {
     categoryCount: number;
     binSize: string;
     timeframe: string;
+    dateRange?: { from: Date | undefined; to: Date | undefined };
 }
+
+export interface StochasticDataPoint {
+    end: string;
+    categories: { [key: string]: number };
+}
+
+export interface StochasticData {
+    period_data: StochasticDataPoint[];
+    period_hours: number;
+    timeframe_days: number;
+    total_periods: number;
+    bucket_id: string; // Add this line
+  }
+
+
 
 
 export type SetChartState = (state: Partial<ChartState>) => void;
+
 
 
 export async function fetchBuckets(): Promise<string[]> {
@@ -101,3 +118,63 @@ export async function fetchTimeframeData(hours: number, bucket: string): Promise
 
     return { data: currentData, prev_data: prevData };
 }
+
+
+
+
+
+
+export async function fetchStochasticData(
+    bucketId: string,
+    periodHours: number,
+    timeframeDays: number,
+): Promise<StochasticData> {
+    let url = `http://localhost:5000/stochastic_data/${bucketId}/${periodHours}/${timeframeDays}`;
+    console.log(`Fetching data from: ${url}`);
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+}
+
+  function filterDataByDateRange(data: StochasticData, from: Date, to: Date): StochasticData {
+    const filteredPeriodData = data.period_data.filter(point => {
+      const pointDate = new Date(point.end);
+      return pointDate >= from && pointDate <= to;
+    });
+  
+    return {
+      ...data,
+      period_data: filteredPeriodData,
+      total_periods: filteredPeriodData.length
+    };
+  }
+  
+  export async function fetchStocahsticTimeframeData(
+    bucket: string,
+    periodHours: number,
+    from: Date,
+    to: Date
+): Promise<{ data: StochasticData; prev_data: StochasticData }> {
+    const today = new Date();
+    const daysToFetch = Math.ceil((today.getTime() - from.getTime()) / (86400000)); // 86400000 ms in a day
+
+    console.log(`Fetching data for ${daysToFetch} days from ${from.toISOString()} to ${today.toISOString()}`);
+    const fullData = await fetchStochasticData(bucket, periodHours, daysToFetch);
+
+    const currentData = filterDataByDateRange(fullData, from, to);
+    
+    const prevPeriodDuration = to.getTime() - from.getTime();
+    const prevFrom = new Date(from.getTime() - prevPeriodDuration);
+    const prevTo = new Date(from.getTime());
+    const prevData = filterDataByDateRange(fullData, prevFrom, prevTo);
+
+    return { data: currentData, prev_data: prevData };
+}
+
+
+
+
+
+

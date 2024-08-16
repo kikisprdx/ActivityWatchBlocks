@@ -1,26 +1,23 @@
 import { MarkdownRenderChild, MarkdownPostProcessorContext, TFile } from "obsidian";
 import { createRoot, Root } from "react-dom/client";
 import React from "react";
-import { StackedLineChartComponent } from "./StackedLineChartComponent";
+import { ContourMapComponent } from "./ContourMapComponent";
 import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
-import { fetchStochasticData, ChartState, fetchStocahsticTimeframeData } from "../ActivityWatchUtils";
+import { fetchCategoryData, fetchTimeframeData, ChartState, CategoryData } from "../ActivityWatchUtils";
 import * as path from 'path';
+
 
 const DEFAULT_CHART_STATE: Partial<ChartState> = {
     selectedTimeframe: "24",
     selectedBucket: "aw-watcher-window_Kikis",
-    categoryCount: 2,
-    dateRange: { 
-        from: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), 
-        to: new Date() 
-    }
+    categoryCount: 10
 };
 
-export class ActivityWatchStackedLineChartViewBlock extends MarkdownRenderChild {
+export class ActivityWatchContourMap extends MarkdownRenderChild {
     private root: Root | null = null;
     private settings: ActivityWatchPluginSettings;
     private blockId: string;
-    private plugin: any; // Replace 'any' with your actual plugin type
+    private plugin: any;
     private chartState: Partial<ChartState> = DEFAULT_CHART_STATE;
 
     constructor(
@@ -64,10 +61,6 @@ export class ActivityWatchStackedLineChartViewBlock extends MarkdownRenderChild 
             const content = await this.plugin.app.vault.adapter.read(filePath);
             const loadedState = JSON.parse(content);
             this.chartState = { ...DEFAULT_CHART_STATE, ...loadedState };
-            if (this.chartState.dateRange) {
-                this.chartState.dateRange.from = this.chartState.dateRange.from ? new Date(this.chartState.dateRange.from) : undefined;
-                this.chartState.dateRange.to = this.chartState.dateRange.to ? new Date(this.chartState.dateRange.to) : undefined;
-            }
         } catch (error) {
             console.log(`No saved state found for block ${this.blockId}, using default state`);
             this.chartState = { ...DEFAULT_CHART_STATE };
@@ -79,6 +72,7 @@ export class ActivityWatchStackedLineChartViewBlock extends MarkdownRenderChild 
         const filePath = this.getStateFilePath();
         const content = JSON.stringify(this.chartState);
         try {
+            // Ensure the states directory exists
             const statesDir = this.plugin.app.vault.getAbstractFileByPath('states');
             if (!statesDir) {
                 await this.plugin.app.vault.createFolder('states');
@@ -91,34 +85,27 @@ export class ActivityWatchStackedLineChartViewBlock extends MarkdownRenderChild 
     }
 
     async onload() {
-        console.log(`Loading ActivityWatchStackedLineChartViewBlock ${this.blockId}`);
+        console.log(`Loading ActivityWatchBarChartViewBlock ${this.blockId}`);
         await this.loadChartState();
         try {
             const timeframe = this.chartState.selectedTimeframe || DEFAULT_CHART_STATE.selectedTimeframe || "24";
             const bucket = this.chartState.selectedBucket || DEFAULT_CHART_STATE.selectedBucket || "aw-watcher-window_Kikis";
-            const from = this.chartState.dateRange?.from || DEFAULT_CHART_STATE.dateRange?.from;
-            const to = this.chartState.dateRange?.to || DEFAULT_CHART_STATE.dateRange?.to;
 
-            if (!from || !to) {
-                throw new Error("Invalid date range");
-            }
-
-            console.log(`Fetching data for timeframe: ${timeframe}, bucket: ${bucket}, from: ${from.toISOString()}, to: ${to.toISOString()}`);
-            const { data, prev_data } = await fetchStocahsticTimeframeData(bucket, parseInt(timeframe), from, to);
+            console.log(`Fetching data for timeframe: ${timeframe}, bucket: ${bucket}`);
+            const { data, prev_data } = await fetchTimeframeData(parseInt(timeframe), bucket);
 
             this.root = createRoot(this.containerEl);
             this.root.render(
                 React.createElement(
                     React.StrictMode,
                     null,
-                    React.createElement(StackedLineChartComponent, { 
-                        data: data,
+                    React.createElement(ContourMapComponent, { 
+                        data: data, 
                         prev_data: prev_data,
                         onTimeframeChange: this.handleTimeframeChange.bind(this),
                         settings: this.settings,
                         initialState: this.chartState,
-                        onStateChange: this.handleStateChange.bind(this),
-                        useDateRange: true
+                        onStateChange: this.handleStateChange.bind(this)
                     }),
                 ),
             );
@@ -128,34 +115,26 @@ export class ActivityWatchStackedLineChartViewBlock extends MarkdownRenderChild 
         }
     }
 
-    private async handleTimeframeChange(hours: number, bucket: string, from: Date | undefined, to: Date | undefined): Promise<any> {
-        console.log(`Timeframe changed for block ${this.blockId}: ${hours} hours, bucket: ${bucket}, from: ${from?.toISOString()}, to: ${to?.toISOString()}`);
-        if (!from || !to) {
-            throw new Error("Invalid date range");
-        }
-        const data = await fetchStocahsticTimeframeData(bucket, hours, from, to);
+    private async handleTimeframeChange(hours: number, bucket: string): Promise<{ data: CategoryData; prev_data: CategoryData }> {
+        console.log(`Timeframe changed for block ${this.blockId}: ${hours} hours, bucket: ${bucket}`);
+        const result = await fetchTimeframeData(hours, bucket);
         this.chartState = {
             ...this.chartState,
             selectedTimeframe: hours.toString(),
-            selectedBucket: bucket,
-            dateRange: { from, to }
+            selectedBucket: bucket
         };
         await this.saveChartState();
-        return data;
+        return result;
     }
 
     private async handleStateChange(newState: Partial<ChartState>) {
         this.chartState = { ...this.chartState, ...newState };
-        if (this.chartState.dateRange) {
-            this.chartState.dateRange.from = this.chartState.dateRange.from ? new Date(this.chartState.dateRange.from) : undefined;
-            this.chartState.dateRange.to = this.chartState.dateRange.to ? new Date(this.chartState.dateRange.to) : undefined;
-        }
         await this.saveChartState();
         console.log(`State changed for block ${this.blockId}:`, this.chartState);
     }
 
     async onunload() {
-        console.log(`Unloading ActivityWatchStackedLineChartViewBlock ${this.blockId}`);
+        console.log(`Unloading ActivityWatchBarChartViewBlock ${this.blockId}`);
         if (this.root) {
             this.root.unmount();
         }

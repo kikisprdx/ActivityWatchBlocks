@@ -1,8 +1,10 @@
 import { Plugin, WorkspaceLeaf } from "obsidian";
 import { ActivityWatchBarChartView, VIEW_TYPE_BARCHART } from "./charts/BarChartView";
 import { ActivityWatchBarChartViewBlock } from "./charts/BarChartMarkdownBlock";
-import { ActivityWatchStackedLineChartViewBlock } from "./charts/StackedLineChartMarkdownBlock";
 import { ActivityWatchSettingTab, ActivityWatchPluginSettings, DEFAULT_SETTINGS } from "./ActivityWatchPluginSettings";
+import { ActivityWatchStackedLineChartViewBlock } from "./charts/StackedLineChartMarkdownBlock";
+import { ActivityWatchStackedLineChartView, VIEW_TYPE_STACKEDLINECHART } from "./charts/StackedLineChartView";
+import { ActivityWatchContourMap } from "charts/ContourMapMarkdownBlock";
 
 export default class ActivityWatchPlugin extends Plugin {
     settings!: ActivityWatchPluginSettings;
@@ -17,13 +19,11 @@ export default class ActivityWatchPlugin extends Plugin {
             (leaf: WorkspaceLeaf) => new ActivityWatchBarChartView(leaf, this.settings, this)
         );
 
-        this.addRibbonIcon(
-            "bar-chart-2",
-            "Open ActivityWatch Bar Chart",
-            () => {
-                this.activateView(VIEW_TYPE_BARCHART);
-            },
+        this.registerView(
+            VIEW_TYPE_STACKEDLINECHART,
+            (leaf: WorkspaceLeaf) => new ActivityWatchStackedLineChartView(leaf, this.settings, this)
         );
+        
 
         this.registerMarkdownCodeBlockProcessor(
             "activitywatch-barchart",
@@ -35,13 +35,22 @@ export default class ActivityWatchPlugin extends Plugin {
             }
         );
 
-        // Add the new stacked line chart processor
         this.registerMarkdownCodeBlockProcessor(
             "activitywatch-stackedlinechart",
             (source, el, ctx) => {
                 const rootEl = el.createDiv();
                 ctx.addChild(
-                    new ActivityWatchStackedLineChartViewBlock(rootEl, source, this.settings)
+                    new ActivityWatchStackedLineChartViewBlock(rootEl, source, this.settings, ctx, this)
+                );
+            }
+        );
+
+        this.registerMarkdownCodeBlockProcessor(
+            "activitywatch-contourmap",
+            (source, el, ctx) => {
+                const rootEl = el.createDiv();
+                ctx.addChild(
+                    new ActivityWatchContourMap(rootEl, source, this.settings, ctx, this)
                 );
             }
         );

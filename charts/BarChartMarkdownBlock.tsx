@@ -4,13 +4,12 @@ import React from "react";
 import { BarChartComponent } from "./BarChartComponent";
 import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
 import { fetchCategoryData, fetchTimeframeData, ChartState, CategoryData } from "../ActivityWatchUtils";
-import * as fs from 'fs';
 import * as path from 'path';
 
 const DEFAULT_CHART_STATE: Partial<ChartState> = {
     selectedTimeframe: "24",
     selectedBucket: "aw-watcher-window_Kikis",
-    categoryCount: 10  // Assuming you want to show top 10 categories by default
+    categoryCount: 10
 };
 
 export class ActivityWatchBarChartViewBlock extends MarkdownRenderChild {
@@ -25,7 +24,7 @@ export class ActivityWatchBarChartViewBlock extends MarkdownRenderChild {
         private source: string,
         settings: ActivityWatchPluginSettings,
         private ctx: MarkdownPostProcessorContext,
-        plugin: any // Replace 'any' with your actual plugin type
+        plugin: any
     ) {
         super(containerEl);
         this.settings = settings;
@@ -36,33 +35,59 @@ export class ActivityWatchBarChartViewBlock extends MarkdownRenderChild {
     private generateBlockId(): string {
         const file = this.plugin.app.vault.getAbstractFileByPath(this.ctx.sourcePath) as TFile;
         const position = this.ctx.getSectionInfo(this.containerEl)?.lineStart || 0;
-        return `${file.path}-${position}`;
+        return this.hashString(`${file.path}-${position}`);
     }
 
-    private getStateFilePath(): string {
-        const statesDir = path.join(this.plugin.app.vault.adapter.basePath, 'states');
-        if (!fs.existsSync(statesDir)) {
-            fs.mkdirSync(statesDir, { recursive: true });
+    private hashString(str: string): string {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
         }
-        return path.join(statesDir, `${this.blockId}.bin`);
+        return Math.abs(hash).toString(36); // Convert to base 36 (alphanumeric)
+    }
+    private getStateFilePath(): string {
+        const filePath = `states/${this.blockId}.json`;
+        console.log(`State file path: ${filePath}`);
+        return filePath;
     }
 
-    private serializeState(state: Partial<ChartState>): Buffer {
-        const jsonString = JSON.stringify(state);
-        return Buffer.from(jsonString, 'utf-8');
+    private async loadChartState() {
+        const filePath = this.getStateFilePath();
+        try {
+            const content = await this.plugin.app.vault.adapter.read(filePath);
+            const loadedState = JSON.parse(content);
+            this.chartState = { ...DEFAULT_CHART_STATE, ...loadedState };
+        } catch (error) {
+            console.log(`No saved state found for block ${this.blockId}, using default state`);
+            this.chartState = { ...DEFAULT_CHART_STATE };
+        }
+        console.log(`Loaded state for block ${this.blockId}:`, this.chartState);
     }
 
-    private deserializeState(buffer: Buffer): Partial<ChartState> {
-        const jsonString = buffer.toString('utf-8');
-        return JSON.parse(jsonString);
+    private async saveChartState() {
+        const filePath = this.getStateFilePath();
+        const content = JSON.stringify(this.chartState);
+        try {
+            // Ensure the states directory exists
+            const statesDir = this.plugin.app.vault.getAbstractFileByPath('states');
+            if (!statesDir) {
+                await this.plugin.app.vault.createFolder('states');
+            }
+            await this.plugin.app.vault.adapter.write(filePath, content);
+            console.log(`Saved state for block ${this.blockId}:`, this.chartState);
+        } catch (error) {
+            console.error(`Error saving state for block ${this.blockId}:`, error);
+        }
     }
 
     async onload() {
         console.log(`Loading ActivityWatchBarChartViewBlock ${this.blockId}`);
         await this.loadChartState();
         try {
-            const timeframe = this.chartState.selectedTimeframe || DEFAULT_CHART_STATE.selectedTimeframe;
-            const bucket = this.chartState.selectedBucket || DEFAULT_CHART_STATE.selectedBucket;
+            const timeframe = this.chartState.selectedTimeframe || DEFAULT_CHART_STATE.selectedTimeframe || "24";
+            const bucket = this.chartState.selectedBucket || DEFAULT_CHART_STATE.selectedBucket || "aw-watcher-window_Kikis";
 
             console.log(`Fetching data for timeframe: ${timeframe}, bucket: ${bucket}`);
             const { data, prev_data } = await fetchTimeframeData(parseInt(timeframe), bucket);
@@ -85,35 +110,6 @@ export class ActivityWatchBarChartViewBlock extends MarkdownRenderChild {
         } catch (error) {
             console.error(`Error rendering chart for block ${this.blockId}:`, error);
             this.containerEl.setText(`Error: ${error instanceof Error ? error.message : "An unknown error occurred"}`);
-        }
-    }
-
-    private async loadChartState() {
-        const filePath = this.getStateFilePath();
-        if (fs.existsSync(filePath)) {
-            try {
-                const buffer = await fs.promises.readFile(filePath);
-                const loadedState = this.deserializeState(buffer);
-                // Merge loaded state with default state, preferring loaded values
-                this.chartState = { ...DEFAULT_CHART_STATE, ...loadedState };
-            } catch (error) {
-                console.error(`Error loading state for block ${this.blockId}:`, error);
-                this.chartState = { ...DEFAULT_CHART_STATE };
-            }
-        } else {
-            this.chartState = { ...DEFAULT_CHART_STATE };
-        }
-        console.log(`Loaded state for block ${this.blockId}:`, this.chartState);
-    }
-
-    private async saveChartState() {
-        const filePath = this.getStateFilePath();
-        const buffer = this.serializeState(this.chartState);
-        try {
-            await fs.promises.writeFile(filePath, buffer);
-            console.log(`Saved state for block ${this.blockId}:`, this.chartState);
-        } catch (error) {
-            console.error(`Error saving state for block ${this.blockId}:`, error);
         }
     }
 

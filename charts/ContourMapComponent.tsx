@@ -14,9 +14,9 @@ import { ChartComponent, ChartComponentProps, ChartDataItem } from './ChartCompo
 import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
 import { CategoryData } from '../ActivityWatchUtils';
 
-type BarChartComponentProps = Omit<ChartComponentProps<CategoryData>, 'renderChart'>;
+type ContourMapComponentProps = Omit<ChartComponentProps<CategoryData>, "renderChart">;
 
-export const BarChartComponent: React.FC<BarChartComponentProps> = (props) => {
+export const ContourMapComponent: React.FC<ContourMapComponentProps> = (props) => {
     const CustomTooltip: React.FC<TooltipProps<number, string>> = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
             const data = payload[0].payload as ChartDataItem;
