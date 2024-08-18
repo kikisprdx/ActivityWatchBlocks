@@ -1,0 +1,135 @@
+import React, { useState, useEffect } from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { DatePickerWithRange } from './date-range-picker';
+import { DateRange } from 'react-day-picker';
+
+// Define the ControlsProps type
+type ControlsProps = {
+  selectedTimeframe: string;
+  selectedBucket: string;
+  buckets: string[];
+  categoryCount: number;
+  useDateRange: boolean;
+  dateRange: DateRange | undefined;
+  settings: any; // Replace 'any' with your actual settings type
+  onTimeframeChange: (timeframe: string) => void;
+  onBucketChange: (bucket: string) => void;
+  onCategoryCountChange: (change: number) => void;
+  onDateRangeChange: (newDateRange: DateRange | undefined) => void;
+  data: DateFrequencyData[];
+  onSelectedAppsChange: (apps: string[]) => void;
+};
+
+// Define the DateFrequencyData type
+export interface DateFrequencyData {
+    activity: string;
+    start_time: string;
+    duration: number;
+}
+
+export const CustomControls: React.FC<ControlsProps> = ({
+  selectedTimeframe,
+  selectedBucket,
+  buckets,
+  categoryCount,
+  useDateRange,
+  dateRange,
+  settings,
+  onTimeframeChange,
+  onBucketChange,
+  onCategoryCountChange,
+  onDateRangeChange,
+  data,
+  onSelectedAppsChange,
+}) => {
+  const [uniqueApps, setUniqueApps] = useState<string[]>([]);
+  const [selectedApps, setSelectedApps] = useState<string[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (data) {
+      // Extract unique apps from the data
+      const apps = Array.from(new Set(data.map(item => item.activity)));
+      setUniqueApps(apps);
+      // Initially select all apps
+      setSelectedApps(apps);
+    }
+  }, [data]);
+
+  const handleAppToggle = (app: string) => {
+    setSelectedApps(prev => {
+      if (prev.includes(app)) {
+        return prev.filter(a => a !== app);
+      } else {
+        return [...prev, app];
+      }
+    });
+  };
+
+  const handleSave = () => {
+    onSelectedAppsChange && onSelectedAppsChange(selectedApps);
+    setIsOpen(false);
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+      <Select onValueChange={onBucketChange} value={selectedBucket}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Select bucket" />
+        </SelectTrigger>
+        <SelectContent>
+          {buckets.map((bucket) => (
+            <SelectItem key={bucket} value={bucket}>{bucket}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline">
+            Select Apps ({selectedApps.length})
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Apps to Display</DialogTitle>
+          </DialogHeader>
+          <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            {uniqueApps.map(app => (
+              <div key={app} style={{ marginBottom: '10px', display: 'flex', alignItems: 'center' }}>
+                <Checkbox
+                  id={app}
+                  checked={selectedApps.includes(app)}
+                  onCheckedChange={() => handleAppToggle(app)}
+                />
+                <label htmlFor={app} style={{ marginLeft: '10px' }}>{app}</label>
+              </div>
+            ))}
+          </div>
+          <Button onClick={handleSave}>Save</Button>
+        </DialogContent>
+      </Dialog>
+
+      <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#3f4144', borderRadius: '4px', padding: '2px' }}>
+        <Button variant="ghost" size="icon" onClick={() => onCategoryCountChange(-1)}>
+          <ChevronDown color={settings.textColor} size={20} />
+        </Button>
+        <span style={{ margin: '0 8px', color: settings.textColor }}>{categoryCount}</span>
+        <Button variant="ghost" size="icon" onClick={() => onCategoryCountChange(1)}>
+          <ChevronUp color={settings.textColor} size={20} />
+        </Button>
+      </div>
+
+      {useDateRange && (
+        <DatePickerWithRange
+          dateRange={dateRange ?? undefined}
+          onDateRangeChange={onDateRangeChange}
+        />
+      )}
+    </div>
+  );
+};

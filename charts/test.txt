@@ -10,18 +10,19 @@ import {
     Legend,
     TooltipProps
 } from "recharts";
-import { ChartComponent, ChartComponentProps, ChartDataItem } from './ChartComponent';
+import { ChartComponent, ChartComponentProps, ChartDataItem, ControlsProps } from './ChartComponent';
 import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
 import { DateFrequencyData, EventPointData, calculateTimeOfDayFrequency } from '../ActivityWatchUtils';
 import { ContourPlot }   from '../components/ui/contour-plot';
 import { CustomControls } from '../components/ui/controls';
+
 type ContourMapComponentProps = Omit<ChartComponentProps<EventPointData>, "renderChart">;
 
 const CustomHeader: React.FC<{ title: string; settings: any }> = ({ title, settings }) => (
     <h2 style={{ color: 'blue', fontSize: '24px' }}>{title}</h2>
-  );
+);
   
-  const CustomFooter: React.FC<{ percentageChange: number; currentTotalDuration: number; prevTotalDuration: number; settings: any }> = 
+const CustomFooter: React.FC<{ percentageChange: number; currentTotalDuration: number; prevTotalDuration: number; settings: any }> = 
     ({ percentageChange, currentTotalDuration, prevTotalDuration }) => (
     <div>
       <p>Custom footer with simplified info:</p>
@@ -29,9 +30,11 @@ const CustomHeader: React.FC<{ title: string; settings: any }> = ({ title, setti
       <p>Current: {(currentTotalDuration / 3600).toFixed(2)}h</p>
       <p>Previous: {(prevTotalDuration / 3600).toFixed(2)}h</p>
     </div>
-  );
+);
 
 export const ContourMapComponent: React.FC<ContourMapComponentProps> = (props) => {
+    const [selectedApps, setSelectedApps] = useState<string[]>([]);
+
     const CustomTooltip: React.FC<TooltipProps<number, string>> = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
             const data = payload[0].payload as ChartDataItem;
@@ -75,54 +78,53 @@ export const ContourMapComponent: React.FC<ContourMapComponentProps> = (props) =
         return data
           .sort((a, b) => b.duration - a.duration) // Sort in descending order
           .slice(0, n); // Take the first N items
-      }
+    }
 
-      const filterShortDurations = (data: DateFrequencyData[], minDuration: number): DateFrequencyData[] => {
+    const filterShortDurations = (data: DateFrequencyData[], minDuration: number): DateFrequencyData[] => {
         return data.filter(d => d.duration >= minDuration);
-      };
+    };
 
-      const limitCategories = (data: DateFrequencyData[], maxCategories: number): DateFrequencyData[] => {
-        const activityTotals = data.reduce((acc, curr) => {
-          acc[curr.activity] = (acc[curr.activity] || 0) + curr.duration;
-          return acc;
-        }, {} as {[key: string]: number});
-      
-        const topActivities = Object.entries(activityTotals)
-          .sort(([, a], [, b]) => b - a)
-          .slice(0, maxCategories)
-          .map(([activity]) => activity);
-      
-        return data.filter(d => topActivities.includes(d.activity));
-      };
+    const limitCategories = (data: DateFrequencyData[], selectedApps: string[]): DateFrequencyData[] => {
+        return data.filter(d => selectedApps.includes(d.activity));
+    };
 
     const renderChart = (dateFrequencyData: EventPointData, prevChartData: EventPointData, settings: ActivityWatchPluginSettings, categoryCount: number) => {
         const transformedData = calculateTimeOfDayFrequency(dateFrequencyData);
         const shortenedData = filterShortDurations(transformedData, 0.25);
-        const filteredData = limitCategories(shortenedData, 3);
-        //console.log("DATA " + transformedData);
-        //const tempBest = getTopItemsByAverageDuration(transformedData, 2);
-
+        const filteredData = limitCategories(shortenedData, selectedApps);
 
         return (
-    <ContourPlot 
-    data={filteredData} 
-    maxCategories={5} 
-    settings={{
-        chartMarginTop: 20,
-        chartHeight: 400,
-        chartWidth: 600,
-        textColor: '#ffffff',
-        labelFontSize: 12,
-        legendFontSize: 10
-    }}
-/>
+            <ContourPlot 
+                data={filteredData} 
+                maxCategories={selectedApps.length} 
+                settings={{
+                    chartMarginTop: 20,
+                    chartHeight: 400,
+                    chartWidth: 600,
+                    textColor: '#ffffff',
+                    labelFontSize: 12,
+                    legendFontSize: 10
+                }}
+            />
         );
     };
 
-    return <ChartComponent<EventPointData>
-      {...props}
-      renderChart={renderChart}
-      useDateRange={false}
-      customControls={CustomControls}
-    />;
+    const handleSelectedAppsChange = (apps: string[]) => {
+        setSelectedApps(apps);
+    };
+
+    return (
+        <ChartComponent<EventPointData>
+            {...props}
+            renderChart={renderChart}
+            useDateRange={false}
+            customControls={(controlProps: ControlsProps) => (
+                <CustomControls
+                    {...controlProps}
+                    data={props.data}
+                    onSelectedAppsChange={handleSelectedAppsChange}
+                />
+            )}
+        />
+    );
 };

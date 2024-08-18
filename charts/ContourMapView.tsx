@@ -33,7 +33,7 @@ export class ActivityWatchBarChartView extends ItemView {
         container.empty();
         this.root = createRoot(container as HTMLElement);
         await this.loadChartState();
-        await this.renderChart();
+        //await this.renderChart();
     }
 
     async loadChartState() {
@@ -49,7 +49,7 @@ export class ActivityWatchBarChartView extends ItemView {
         console.log("Saved chart state:", this.chartState);
     }
 
-    async renderChart() {
+    /*async renderChart() {
         console.log("Starting renderChart method");
         try {
             console.log("Fetching initial data...");
@@ -80,7 +80,7 @@ export class ActivityWatchBarChartView extends ItemView {
                 this.containerEl.setText("An unknown error occurred");
             }
         }
-    }
+    }*/
 
     private async handleStateChange(newState: Partial<ChartState>) {
         this.chartState = { ...this.chartState, ...newState };

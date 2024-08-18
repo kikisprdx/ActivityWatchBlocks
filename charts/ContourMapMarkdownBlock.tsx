@@ -3,12 +3,12 @@ import { createRoot, Root } from "react-dom/client";
 import React from "react";
 import { ContourMapComponent } from "./ContourMapComponent";
 import { ActivityWatchPluginSettings } from "../ActivityWatchPluginSettings";
-import { fetchCategoryData, fetchTimeframeData, ChartState, CategoryData } from "../ActivityWatchUtils";
+import { fetchCategoryData, fetchTimeframeData, ChartState, EventPointData, calculateTimeOfDayFrequency, fetchDetailedData } from "../ActivityWatchUtils";
 import * as path from 'path';
 
 
 const DEFAULT_CHART_STATE: Partial<ChartState> = {
-    selectedTimeframe: "24",
+    dateRange: {from: new Date("2024-08-01"), to: new Date("2024-08-30")},
     selectedBucket: "aw-watcher-window_Kikis",
     categoryCount: 10
 };
@@ -85,14 +85,16 @@ export class ActivityWatchContourMap extends MarkdownRenderChild {
     }
 
     async onload() {
-        console.log(`Loading ActivityWatchBarChartViewBlock ${this.blockId}`);
+        console.log(`Loading CONTOUR MAP ${this.blockId}`);
+        //calculateTimeOfDayFrequency("aw-watcher-window_Kikis", new Date("2024-08-01"), new Date("2024-08-30"));
         await this.loadChartState();
         try {
-            const timeframe = this.chartState.selectedTimeframe || DEFAULT_CHART_STATE.selectedTimeframe || "24";
+            const startDate = this.chartState.dateRange?.from || new Date("2024-08-01");
+            const endDate = this.chartState.dateRange?.to  || new Date("2024-08-30");
             const bucket = this.chartState.selectedBucket || DEFAULT_CHART_STATE.selectedBucket || "aw-watcher-window_Kikis";
 
-            console.log(`Fetching data for timeframe: ${timeframe}, bucket: ${bucket}`);
-            const { data, prev_data } = await fetchTimeframeData(parseInt(timeframe), bucket);
+            console.log(`Fetching data for timeframe: bucket: ${bucket}`);
+            const data  = await fetchDetailedData(bucket, startDate, endDate);
 
             this.root = createRoot(this.containerEl);
             this.root.render(
@@ -101,7 +103,6 @@ export class ActivityWatchContourMap extends MarkdownRenderChild {
                     null,
                     React.createElement(ContourMapComponent, { 
                         data: data, 
-                        prev_data: prev_data,
                         onTimeframeChange: this.handleTimeframeChange.bind(this),
                         settings: this.settings,
                         initialState: this.chartState,
@@ -115,16 +116,16 @@ export class ActivityWatchContourMap extends MarkdownRenderChild {
         }
     }
 
-    private async handleTimeframeChange(hours: number, bucket: string): Promise<{ data: CategoryData; prev_data: CategoryData }> {
-        console.log(`Timeframe changed for block ${this.blockId}: ${hours} hours, bucket: ${bucket}`);
-        const result = await fetchTimeframeData(hours, bucket);
+    private async handleTimeframeChange(hours: number, bucket: string, from: Date, to: Date): Promise<{ data: EventPointData; prev_data: EventPointData }> {
+        console.log(`Date period changed for block ${this.blockId}: from ${from.toISOString()} to ${to.toISOString()}`);
+        const result = await fetchDetailedData(bucket, from, to);
         this.chartState = {
             ...this.chartState,
-            selectedTimeframe: hours.toString(),
+            selectedPeriod: { from, to },
             selectedBucket: bucket
         };
         await this.saveChartState();
-        return result;
+        return {data: result, prev_data: result};
     }
 
     private async handleStateChange(newState: Partial<ChartState>) {

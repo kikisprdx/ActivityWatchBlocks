@@ -7,11 +7,36 @@ export interface CategoryData {
     total_duration: number;
 }
 
+export interface DateFrequencyData {
+    activity: string;
+    start_time: string;
+    duration: number;
+}
+
+export interface EventPointData {
+    bucket_id: string;
+    data_source: string;
+    end_date: string;
+    events: Event[];
+}
+
+interface Event {
+    data: {
+        app: string;
+        title: string;
+    };
+    date: string;
+    duration: number;
+    id: number;
+    time: string;
+    timestamp: string;
+}
 
 export interface ChartState {
     data: CategoryData;
     prevData: CategoryData;
-    selectedTimeframe: string;
+    selectedTimeframe?: string;
+    selectedPeriod: {from: Date, to: Date};
     selectedBucket: string;
     error: string | null;
     categoryCount: number;
@@ -119,11 +144,6 @@ export async function fetchTimeframeData(hours: number, bucket: string): Promise
     return { data: currentData, prev_data: prevData };
 }
 
-
-
-
-
-
 export async function fetchStochasticData(
     bucketId: string,
     periodHours: number,
@@ -138,18 +158,87 @@ export async function fetchStochasticData(
     return await response.json();
 }
 
-  function filterDataByDateRange(data: StochasticData, from: Date, to: Date): StochasticData {
+export async function fetchDetailedData(
+    bucketId: string, 
+    startDate: Date | string,
+    endDate: Date | string
+): Promise<EventPointData> {
+    // Helper function to ensure we have a valid ISO string
+    const toISOString = (date: Date | string): string => {
+        if (date instanceof Date) {
+            return date.toISOString();
+        } else if (typeof date === 'string') {
+            // Attempt to parse the string as a date
+            const parsedDate = new Date(date);
+            if (isNaN(parsedDate.getTime())) {
+                throw new Error(`Invalid date string: ${date}`);
+            }
+            return parsedDate.toISOString();
+        } else {
+            throw new Error(`Invalid date type: ${typeof date}`);
+        }
+    };
+
+    try {
+        const startDateISO = toISOString(startDate);
+        const endDateISO = toISOString(endDate);
+
+        const url = `http://localhost:5000/detailed_data/${bucketId}/${startDateISO}/${endDateISO}`;
+        console.log(`Fetching detailed data from: ${url}`);
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error in fetchDetailedData:', error);
+        throw error; // Re-throw the error for the caller to handle
+    }
+}
+
+function filterDataByDateRange(data: StochasticData, from: Date, to: Date): StochasticData {
     const filteredPeriodData = data.period_data.filter(point => {
-      const pointDate = new Date(point.end);
-      return pointDate >= from && pointDate <= to;
+        const pointDate = new Date(point.end);
+        return pointDate >= from && pointDate <= to;
     });
   
     return {
-      ...data,
-      period_data: filteredPeriodData,
-      total_periods: filteredPeriodData.length
+        ...data,
+        period_data: filteredPeriodData,
+        total_periods: filteredPeriodData.length
     };
-  }
+}
+
+export function calculateTimeOfDayFrequency(
+    data: EventPointData
+):  DateFrequencyData[]  {
+    const rawData = data.events.map(event => {
+        const date = new Date(event.timestamp);
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const seconds = date.getSeconds().toString().padStart(2, '0');
+        const startTime = `${hours}:${minutes}:${seconds}`;
+        
+        return {
+            activity: event.data.app,
+            start_time: startTime,
+            duration: event.duration / 3600  // Convert seconds to hours
+        };
+    });
+
+    // You can print rawData here before converting to objects
+    console.log(JSON.stringify(rawData, null, 2));
+
+    const objectData = rawData.map(item => ({
+        activity: item.activity,
+        start_time: item.start_time,
+        duration: item.duration
+    }));
+
+    return objectData;
+}
   
   export async function fetchStocahsticTimeframeData(
     bucket: string,
